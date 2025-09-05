@@ -1,0 +1,236 @@
+# 1. 관리자 계정 root 사용을 위해 암호 지정하기
+goodee@server1:~$ sudo passwd root
+
+# 2. 관리자 계정으로 로그인하기
+goodee@server1:~$ su -
+
+# 3. 관리자 계정에서 로그아웃하기
+root@server1:~# logout
+
+# 4. 현재 경로 확인하기 (print working directory)
+goodee@server1:~$ pwd
+/home/goodee
+
+# 5. 디렉터리 이동하기 (change directory)
+goodee@server1:~$ cd .ssh
+goodee@server1:~/.ssh$ cd ..
+
+# 6. 디렉터리 만들기 (make directory)
+goodee@server1:~$ mkdir ./docker
+goodee@server1:~$ cd docker
+goodee@server1:~/docker$ cd ..
+
+# 7. 디렉터리 삭제하기 (remove directory)
+goodee@server1:~$ rmdir ./docker
+goodee@server1:~$ cd docker
+-bash: cd: docker: No such file or directory
+
+# 8. 디렉터리 삭제는 비어 있는 디렉터리만 가능
+goodee@server1:~$ mkdir docker
+goodee@server1:~$ mkdir ./docker/image  # 하위 디렉터리를 포함한 docker 디렉터리
+goodee@server1:~$ rmdir docker
+rmdir: failed to remove 'docker': Directory not empty
+
+# 9. 목록 보기
+goodee@server1:~$ ls
+docker
+
+# 10. 모든 목록 보기 (숨김 포함)
+goodee@server1:~$ ls -a
+.   .bash_history  .bashrc  docker    .ssh                       .Xauthority
+..  .bash_logout   .cache   .profile  .sudo_as_admin_successful
+
+11. 모든 목록 자세히 보기 (숨김 포함)
+goodee@server1:~$ ls -a -l
+total 40
+drwxr-x--- 5 goodee goodee 4096 Sep  4 00:21 .  ## drwxr-x--- : d로 시작하면 디렉토리
+drwxr-xr-x 3 root   root   4096 Sep  3 06:13 ..
+-rw------- 1 goodee goodee   11 Sep  3 08:02 .bash_history  ## -rw------- : -으로 시작하면 파일
+-rw-r--r-- 1 goodee goodee  220 Jan  6  2022 .bash_logout
+-rw-r--r-- 1 goodee goodee 3771 Jan  6  2022 .bashrc
+drwx------ 2 goodee goodee 4096 Sep  3 06:15 .cache
+...
+
+12. 모든 목록 자세히 보기 + 파일 유형 쉽게 구분하기 (이름 뒤에 / 있으면 디렉터리, 없으면 일반 파일)
+goodee@server1:~$ ls -a -l -F
+goodee@server1:~$ ls -l -a -F  ## <--- 옵션 간 순서는 없음
+goodee@server1:~$ ls -alF      ## <--- 하나로 모아서 작성해도 무방
+total 40
+drwxr-x--- 5 goodee goodee 4096 Sep  4 00:21 ./
+drwxr-xr-x 3 root   root   4096 Sep  3 06:13 ../
+-rw------- 1 goodee goodee   11 Sep  3 08:02 .bash_history
+-rw-r--r-- 1 goodee goodee  220 Jan  6  2022 .bash_logout
+-rw-r--r-- 1 goodee goodee 3771 Jan  6  2022 .bashrc
+drwx------ 2 goodee goodee 4096 Sep  3 06:15 .cache/    ## .cache/ : /가 마지막에 붙으면 디렉터리
+...
+
+13. ll 명령은 ls -alF 명령의 별칭(alias)
+goodee@server1:~$ ll
+total 40
+drwxr-x--- 5 goodee goodee 4096 Sep  4 00:21 ./
+drwxr-xr-x 3 root   root   4096 Sep  3 06:13 ../
+-rw------- 1 goodee goodee   11 Sep  3 08:02 .bash_history
+-rw-r--r-- 1 goodee goodee  220 Jan  6  2022 .bash_logout
+-rw-r--r-- 1 goodee goodee 3771 Jan  6  2022 .bashrc
+drwx------ 2 goodee goodee 4096 Sep  3 06:15 .cache/
+...
+
+14. 서브 디렉터리 펼쳐서 보기 (-R 옵션)
+goodee@server1:~$ ls -R
+.:
+docker
+
+./docker:
+image
+
+./docker/image:
+goodee@server1:~$
+
+15. 사용자와 권한의 종류
+
+  1) 권한의 종류
+  --------+---
+  권한    | 값
+  --------+---
+  read    | 4
+  write   | 2
+  execute | 1
+  --------+---
+
+  2) 사용자의 종류
+  --------+---
+  사용자  | 기호
+  --------+---
+  owner   | u
+  group   | g
+  other   | o
+  all     | a
+  --------+---
+
+  3) 파일 모드 부여 규칙(사용자별로 권한을 부여하는 것)
+    (1) owner -> group -> other 순으로 권한을 부여
+    (2) read -> write -> execute 순으로 권한을 부여
+
+  4) 권한 부여의 예시
+    (1) 파일 모드 표기 방식
+       rwxrwxrwx : owner(rwx), group(rwx), other(rws) : 777
+       rwxrwx--- : owner(rwx), group(rwx), other(---) : 770
+       r--r--r-- : owner(r--), group(r--), other(r--) : 444
+       rw------- : owner(rw-), group(---), other(---) : 600
+    (2) 기호 활용
+      u=rwx : owner(rwx)
+      g=rwx : group(rwx)
+      o=rwx : other(rws)
+      a=rwx : owner(rwx), group(rwx), other(rws)
+        u+r : owner에게 read 권한 추가
+        g+r : group에게 read 권한 추가
+        o+r : other에게 read 권한 추가
+        a+r : owner, group, other에게 read 권한 추가
+          u-r : owner에게서 read 권한 제거
+          g-r : group에게서 read 권한 제거
+          o-r : other에게서 read 권한 제거
+          a-r : owner, group, other에게서 read 권한 제거
+
+# 16. 파일 모드 변경 (chmod)
+goodee@server1:~$ chmod rwxrwxrwx ./docker  ##  잘못된 문법
+goodee@server1:~$ chmod 777 ./docker  ## 숫자 모드 활용 가능
+goodee@server1:~$ chmod o-w ./docker  ## 기호 모드 활용 가능
+goodee@server1:~$ chmod o=rwx ./docker  ## 기호 모드 활용 가능
+goodee@server1:~$ chmod u=rwx,g=rwx,o=r-- ./docker  ## 여러 사용자별 기호 모드 활용 가능
+
+17. 소유자가 root인 container 디렉터리 만들기
+goodee@server1:~$ sudo mkdir container
+
+18. container 디렉터리 소유자를 goodee:goodee로 변경
+goodee@server1:~$ sudo chown goodee:goodee ./container
+
+19. 파일을 만드는 각종 방법
+1) vi 편집기
+goodee@server1:~$ vi hello.txt
+  i(입력 모드) -> 입력 -> Esc(입력 모드 종료) -> :wq (저장 후 닫기)
+2) nano 편집기
+goodee@server1:~$ nano hello.txt
+  입력 => Ctrl + X + Y + Enter
+3) echo 명령어 활용 (원래 echo는 출력 명령어)
+goodee@server1:~$ echo "HELLO WORLD" > hello.txt  ## 하나의 > 는 기존 내용 지우고 새로운 hello.txt 만듬
+goodee@server1:~$ cat hello.txt  ## 텍스트 파일 내용 확인
+HELLO WORLD
+goodee@server1:~$ echo "Nice to meet you" >> hello.txt  ## 두 개의 >> 는 기존 내용 마지막에 추가
+goodee@server1:~$ cat hello.txt  ## 텍스트 파일 내용 확인
+HELLO WORLD
+Nice to meet you
+
+# 20. 파일 삭제
+#     rm -i : 삭제 여부 확인
+#     rm -f : 강제 삭제
+#     rm -r : 디렉터리 삭제
+goodee@server1:~$ rm hello.txt
+
+# 21. rm -i 명령을 rm 명령의 별칭으로 설정(세션이 유지되는 동안만 사용 가능)
+odee@server1:~$ alias rm='rm -i'
+
+# 22. 내용이 없는 파일을 만들어 삭제 동작 확인
+goodee@server1:~$ touch hello.txt  ## touch : 내용이 없는 파일 생성 명령
+goodee@server1:~$ rm hello.txt
+rm: remove regular empty file 'hello.txt'? 
+
+# 23. 환경설정파일
+# 사용자가 로그인할때마다 자동으로 실행되는 명령들을 저장해 두는 환경설정파일
+# 시스템 환경설정파일
+  - root 계정으로 설정
+  - /etc/profile
+# 사용자 환경설정파일
+  - 개별 사용자 계정(goodee)으로 설정
+  - ~/.profile
+  - ~/.bashrc
+# 환경설정파일 읽는 순서
+  - /etc/profile
+  - ~/.profile
+  - ~/.bashrc
+
+# 24. rm -i 명령을 rm 명령의 별칭으로 설정하기 위해 ~/.bashrc 파일 편집(새로운 세션이 시작해도 동작하도록 환경설정파일에 등록)
+goodee@server1:~$ nano ~/.bashrc
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+...
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+alias rm='rm -i'    ## <--- 새로 추가한 내용
+...
+
+# 25. 변경내용 적용
+goodee@server1:~$ source ~/.bashrc
+
+# 26. 검색 (~/.bashrc 파일에서 alias 검색)
+goodee@server1:~$ grep 'alias' ~/.bashrc
+# enable color support of ls and also add handy aliases  ## <--- 파일에서 alias가 처음으로 나타나는 부분이 열림
+
+# 27. 검색 옵션
+goodee@server1:~$ grep -v 'alias' ./.bashrc  ## alias 제외 검색
+goodee@server1:~$ grep -e 'alias' -e 'user' ./.bashrc  ## 여러 단어 검색
+
+# 28. 파이프(|) : 두 개의 명령어를 순서대로 연결해서 실행
+goodee@server1:~$ cat ~/.bashrc | grep 'alias'  ## ~/.bashrc 파일을 열고, 'alias' 검색하기
+goodee@server1:~$ ls -alF / | grep 'opt'  ## 루트 디렉토리(/) 목록을 열고, 'opt' 검색하기
+
+# 29. 텍스트 파일 여는 방법
+# cat     : 문서 전체 보기
+# more    : 한 화면씩 보기 (스크롤 기능 없음)
+    enter : 한 줄 이동
+    space : 다음 화면으로 이동
+    b     : 이전 화면으로 이동
+    /검색 : 검색어 찾기
+# less : 한 화면씩 보기 (상하 방향키로 스크롤 가능)
+    enter : 한 줄 이동
+    space : 다음 화면으로 이동
+    b     : 이전 화면으로 이동
+    /검색 : 검색어 찾기
+# head    : 위에서 10줄 보기
+  head -5 : 위에서 5줄 보기
+# tail    : 아래에서 10줄 보기
+  tail -5 : 아래에서 5줄 보기
+  tail -f : 실시간으로 파일의 변동 내용 확인 (실시간 로그 확인용) : 강제 종료를 위해 Ctrl + c 필요함

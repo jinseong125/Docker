@@ -1,0 +1,120 @@
+* 도커 볼륨 실습
+
+1. bind mount (서버폴더 - 컨테이너폴더 직접 연결해서 백업하기)
+
+### 1) 서버폴더 만들기
+goodee@server1:~$ mkdir -p ~/nginx/html
+
+
+### 2) 컨테이너 생성 (이 때 서버폴더와 -v 옵션으로 컨테이너폴더를 연결)
+###    -v <서버폴더>:<컨테이너폴더>
+###    -p <서버포트>:<컨테이너포트> 
+###    -p 8080:80   (http://192.168.56.1:8080 접속 시 nginx 컨테이너로 연결)
+goodee@server1:~$ docker run -d \
+> --name nginx-bind \
+> -p 8080:80 \
+> -v ~/nginx/html:/usr/share/nginx/html \
+> nginx
+202a23cc505d52f38a540dd71d10c99fec2ef7bef1d9a8ad07f7626481238dd0
+
+
+### 3) 컨테이너 실행 확인
+goodee@server1:~$ docker ps
+CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS              PORTS                                     NAMES
+202a23cc505d   nginx     "/docker-entrypoint.…"   2 minutes ago   Up About a minute   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   nginx-bind
+
+
+### 4) 컨테이너 정보 확인
+goodee@server1:~$ docker inspect nginx-bind
+[
+    ...
+    "HostConfig": {
+        "Binds": [
+            "/home/goodee/nginx/html:/usr/share/nginx/html"  ### 여기에서 연결된 서버폴더:컨테이너폴더 확인 가능
+        ],
+        "ContainerIDFile": "",
+        "LogConfig": {
+            "Type": "json-file",
+            "Config": {}
+        },
+    ...
+]
+
+
+### 5) 확인을 위해, 서버폴더에 파일 만들기
+###    서버폴더에 새 파일을 만들면 
+goodee@server1:~/nginx/html$ cd ~/nginx/html
+goodee@server1:~/nginx/html$ nano index.html
+<html>
+<body>
+<h1>Hello World</h1>
+</body>
+</html>
+입력 후 Ctrl + X -> Y -> Enter
+
+
+### 6) 확인을 위해, 컨테이너폴더 확인하기
+goodee@server1:~/nginx/html$ docker exec -it nginx-bind bash
+root@202a23cc505d:/# cd /usr/share/nginx/html
+root@202a23cc505d:/usr/share/nginx/html# ls
+index.html
+root@202a23cc505d:/usr/share/nginx/html# cat index.html
+<html>
+<body>
+<h1>Hello World</h1>
+</body>
+</html>
+
+
+### 7) 확인 완료 후 빠져 나오기
+root@202a23cc505d:/usr/share/nginx/html# exit
+exit
+
+
+### 8) 연습한 자원(서버폴더, 컨테이너) 삭제
+goodee@server1:~/nginx/html$ cd ~
+goodee@server1:~$ rm -rf ~/nginx
+goodee@server1:~$ docker stop nginx-bind
+nginx-bind
+goodee@server1:~$ docker rm nginx-bind
+nginx-bind
+
+
+
+2. volume mount (서버폴더를 도커볼륨(백업 관리자)으로 백업하기)
+
+### 1) 도커 볼륨 만들기
+goodee@server1:~$ docker volume create nginx-vol
+nginx-vol
+
+
+### 2) 컨테이너 생성 (이 때 -v 옵션으로 도커볼륨이 컨테이너폴더를 관리)
+###    -v <도커볼륨>:<컨테이너폴더>
+###    -p <서버포트>:<컨테이너포트>
+###    -p 8080:80   (http://192.168.56.1:8080 접속 시 nginx 컨테이너로 연결)
+goodee@server1:~$ docker run -d \
+> --name nginx-bind \
+> -p 8080:80 
+> -v nginx-vol:/usr/share/nginx/html
+> nginx
+a1bd8c580b1b8893513c598ed4126d92e26740460903af062f28e1517c9c917e
+
+
+### 3) 도커 볼륨 정보 확인
+goodee@server1:~$ docker volume inspect nginx-vol
+[
+    {
+        "CreatedAt": "2025-09-08T01:49:06Z",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/nginx-vol/_data",  ### 도커 볼륨이 데이터를 백업하는 곳
+        "Name": "nginx-vol",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+
+
+### 4) 도커 볼륨 삭제
+goodee@server1:~$ docker volume rm nginx-vol
+nginx-vol

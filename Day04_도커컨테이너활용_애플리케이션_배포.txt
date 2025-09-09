@@ -1,0 +1,227 @@
+* 서버 환경 및 목표
+1) 설치된 패키지 : curl, docker, openjdk-11-jdk, git, maven, lsof(특정 포트를 사용중인 프로세스 조회)
+2) 도커 컨테이너 : mysql-server, tomcat-server, nginx-proxy
+
+
+### 1. 도커 네트워크 생성 (3개의 도커 컨테이너를 하나의 네트워크로 묶기 위함)
+goodee@server1:~$ docker network create app-net
+13d846ffb7cc8cf0a4d7dfc47b0c6668de88a5e14f74d68eead5f7c97f3c1c97
+
+
+### 2. mysql-server 백업을 위한 도커 볼륨 생성
+goodee@server1:~$ docker volume create mysql-vol
+
+
+### 3. 3306 포트를 사용 중인 프로세스 확인
+goodee@server1:~$ sudo lsof -i:3306
+COMMAND PID  USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+mysqld  765  mysql  23u  IPv4 21773  0t0      TCP  localhost:mysql (LISTEN)
+
+### 4. 확인된 PID(프로세스의 ID)를 이용해서 프로세스 종료
+goodee@server1:~$ sudo kill 765
+
+
+### 5. mysql-server 컨테이너 실행
+goodee@server1:~$ docker run -d \
+> --name mysql-server \
+> --network app-net \
+> -p 3306:3306 \
+> -v mysql-vol:/var/lib/mysql \
+> -e MYSQL_ROOT_PASSWORD=root \
+> -e MYSQL_DATABASE=db_file \
+> -e MYSQL_USER=goodee \
+> -e MYSQL_PASSWORD=goodee \
+> mysql:8.0
+34eb9f3ab7c1eab1fb65f1a81550ebbd58a4e7c781a4f3e68d9fcfb69377619a
+
+
+### 6. github 복제하기 (홈 디렉터리 아래 DeployProject 폴더 생성)
+goodee@server1:~$ git clone https://github.com/teacher-min/DeployProject.git
+
+
+### 7. DeployProject 폴더에 있는 sql 파일을 mysql-server 컨테이너로 복사하기
+goodee@server1:~$ docker cp ~/DeployProject/src/main/resources/schema.sql mysql-server:/tmp/schema.sql
+Successfully copied 3.07kB to mysql-server:/tmp/schema.sql
+
+
+### 8. mysql-server 컨테이너 내부로 들어가 복사해 둔 sql 파일 실행하기
+goodee@server1:~$ docker exec -it mysql-server mysql -u goodee -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 8
+Server version: 8.0.43 MySQL Community Server - GPL
+
+Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> USE db_file;
+Database changed
+
+mysql> source /tmp/schema.sql
+Database changed
+
+Query OK, 0 rows affected, 1 warning (0.03 sec)
+
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+Query OK, 0 rows affected (0.12 sec)
+
+Query OK, 0 rows affected (0.12 sec)
+
+Query OK, 0 rows affected (0.18 sec)
+
+mysql> exit
+Bye
+
+
+### 9. mysql-server 컨테이너 실행 로그 확인하기
+goodee@server1:~$ docker logs mysql-server
+2025-09-08 03:42:11+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.43-1.el9   started.
+2025-09-08 03:42:11+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+2025-09-08 03:42:11+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.43-1.el9   started.
+2025-09-08 03:42:12+00:00 [Note] [Entrypoint]: Initializing database files
+...
+
+
+### 10. DeployProject 프로젝트의 데이터베이스 접속 정보 수정
+###     동일한 네트워크로 묶는 경우 DB 주소는 컨테이너 이름(mysql-server)로 지정 가능
+###     localhost를 mysql-server로 수정
+###     <beans:property name="jdbcUrl" value="jdbc:mysql://mysql-server:3306/db_file..." />
+goodee@server1:~$ nano ~/DeployProject/src/main/webapp/WEB-INF/spring/appServlet/setext.xml
+
+
+### 11. DeployProject 프로젝트 빌드
+goodee@server1:~$ cd ~/DeployProject/
+goodee@server1:~/DeployProject$ mvn clean package
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ----------------------< org.shark:DeployProject >-----------------------
+[INFO] Building DeployProject 1.0.0
+[INFO] --------------------------------[ war ]---------------------------------
+[INFO]
+[INFO] --- maven-clean-plugin:2.5:clean (default-clean) @ DeployProject ---
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ DeployProject
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. platform dependent!
+[INFO] Copying 4 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ DeployProject --
+[INFO] Changes detected - recompiling the module!
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. buildorm dependent!
+[INFO] Compiling 15 source files to /home/goodee/DeployProject/target/classes
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ Deplo---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. platform dependent!
+[INFO] skip non existing resourceDirectory /home/goodee/DeployProject/src/test/reso
+[INFO]
+[INFO] --- maven-compiler-plugin:3.8.1:testCompile (default-testCompile) @ DeployPr
+[INFO] No sources to compile
+[INFO]
+[INFO] --- maven-surefire-plugin:2.12.4:test (default-test) @ DeployProject ---
+[INFO] No tests to run.
+[INFO]
+[INFO] --- maven-war-plugin:3.2.3:war (default-war) @ DeployProject ---
+[INFO] Packaging webapp
+[INFO] Assembling webapp [DeployProject] in [/home/goodee/DeployProject/target/Depl-1.0.0]
+[INFO] Processing war project
+[INFO] Copying webapp resources [/home/goodee/DeployProject/src/main/webapp]
+[INFO] Webapp assembled in [897 msecs]
+[INFO] Building war: /home/goodee/DeployProject/target/DeployProject-1.0.0.war
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  16.669 s
+[INFO] Finished at: 2025-09-08T05:24:46Z
+[INFO] ------------------------------------------------------------------------
+
+
+
+### 12. tomcat-server 컨테이너 실행
+###     첨부파일이 컨테이너 내부 /home/goodee/upload에 저장되므로 볼륨 지정 필요 (bind mount 방식 사용)
+goodee@server1:~/DeployProject$ cd ~
+goodee@server1:~$ docker run -d \
+> --name tomcat-server \
+> --network app-net \
+> -v /home/goodee/upload:/home/goodee/upload
+> -p 8080:8080 \
+> tomcat:9
+
+
+### 13. tomcat-server에 WAR 배포
+###     WAR원본: (서버)     /home/goodee/DeployProject/target/DeployProject-1.0.0.war
+goodee@server1:~$ docker cp ~/DeployProject/target/DeployProject-1.0.0.war tomcat-server:/usr/local/tomcat/webapps/deploy.war
+Successfully copied 21.5MB to tomcat-server:/usr/local/tomcat/webapps/deploy.war
+
+
+### 14. 배포 확인
+goodee@server1:~$ docker exec tomcat-server ls -alF /usr/local/tomcat/webapps
+total 21044
+drwxr-xr-x 1 root   root       4096 Sep  8 05:36 ./
+drwxr-xr-x 1 root   root       4096 Sep  5 21:45 ../
+drwxr-x--- 4 root   root       4096 Sep  8 05:36 deploy/  ## 배포되었기 때문에 deploy.war의 압축이 풀려 deploy 폴더가 생성되어 있음
+-rw-rw-r-- 1 ubuntu ubuntu 21529030 Sep  8 05:24 deploy.war
+
+
+### 15. 중간 확인
+###     브라우저 열고, http://192.168.56.1:8080/deploy
+
+
+
+### 16. 리버스 프록시 설정 파일을 만들 폴더 생성
+goodee@server1:~$ mkdir -p ~/nginx/config
+
+
+### 17. 리버스 프록시 설정 파일 생성
+goodee@server1:~$ nano ~/nginx/config/tomcat-proxy.conf
+server {
+    listen 80;
+    server_name localhost;
+    location /deploy {
+        proxy_pass http://tomcat-server:8080/deploy;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+### 18. 80 포트 사용을 위해 사용 중인 80 포트 확인 후 해당 프로세스 중지
+goodee@server1:~$ sudo lsof -i:80
+COMMAND PID     USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+nginx   763     root    6u  IPv4  21635      0t0  TCP *:http (LISTEN)
+nginx   763     root    7u  IPv6  21636      0t0  TCP *:http (LISTEN)
+nginx   764 www-data    6u  IPv4  21635      0t0  TCP *:http (LISTEN)
+nginx   764 www-data    7u  IPv6  21636      0t0  TCP *:http (LISTEN)
+nginx   765 www-data    6u  IPv4  21635      0t0  TCP *:http (LISTEN)
+nginx   765 www-data    7u  IPv6  21636      0t0  TCP *:http (LISTEN)
+goodee@server1:~$ sudo kill 763 764 765
+
+
+### 19. nginx-proxy 컨테이너 실행
+###     -v 옵션으로 리버스 프록시 설정 파일(tomcat-proxy.conf)을 컨테이너 내부에 자동으로 넣음
+goodee@server1:~$ docker run -d \
+> --name nginx-proxy \
+> --network app-net \
+> -p 80:80 \
+> -v ~/nginx/config:/etc/nginx/conf.d \
+> nginx
+
+
+### 20. 최종 확인
+###     브라우저 열고, http://192.168.56.1/deploy
+
+
+### 참고) 실습 종류 후 자원 정리
+goodee@server1:~$ docker stop $(docker ps -aq)
+goodee@server1:~$ docker rm $(docker ps -aq)
+goodee@server1:~$ docker rmi $(docker images -aq)
+goodee@server1:~$ docker volume rm mysql-vol
+goodee@server1:~$ docker network rm app-net

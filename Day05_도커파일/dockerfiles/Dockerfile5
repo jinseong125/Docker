@@ -1,0 +1,11 @@
+# 베이스 이미지
+FROM ubuntu:22.04
+
+# 이미지 빌드 시 실행할 명령어
+RUN apt update && apt install -y openjdk-11-jdk
+
+# 이미지 빌드와 컨테이너 실행 시 사용할 수 있는 환경 변수
+ENV JAVA_HOME=/usr/library/jvm/java-11-openjdk-amd64
+
+# 컨테이너 실행 시 기본 작업 위치 지정
+WORKDIR /home/javatest

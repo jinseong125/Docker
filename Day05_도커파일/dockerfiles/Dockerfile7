@@ -1,0 +1,59 @@
+# 베이스 이미지
+FROM ubuntu:22.04
+
+# 이미지 빌드 시 실행할 명령어 (패키지 설치)
+RUN apt update && apt install -y openjdk-11-jdk wget git maven mysql-server
+
+# 이미지 빌드 시 실행할 명령어 (톰캣 9.0 설치)
+RUN wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.109/bin/apache-tomcat-9.0.109.tar.gz -P /home/tomcat
+RUN tar -xzvf /home/tomcat/apache-tomcat-9.0.109.tar.gz -C /home/tomcat
+
+# 이미지 빌드와 컨테이너 실행 시 사용할 수 있는 환경 변수 (JAVA_HOME)
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+
+# 이미지 빌드 시 실행할 명령어 (MySQL 설정)
+RUN service mysql start && \
+    mysql -e "CREATE DATABASE IF NOT EXISTS db_file;" && \
+    mysql -e "CREATE USER 'goodee'@'localhost' IDENTIFIED BY 'goodee';" && \
+    mysql -e "GRANT ALL PRIVILEGES ON db_file.* TO 'goodee'@'localhost';"  && \
+    mysql -e "FLUSH PRIVILEGES;" && \
+    service mysql stop
+
+# 기본 작업 경로 설정 (github 소스코드 클론할 경로)
+WORKDIR /tmp
+
+# 이미지 빌드 시 실행할 명령어 (github 소스코드 클론)
+RUN git clone https://github.com/teacher-min/DeployProject.git
+
+# 기본 작업 경로 설정 (maven 빌드할 경로)
+WORKDIR /tmp/DeployProject
+
+# 이미지 빌드 시 실행할 명령어 (maven 빌드)
+RUN mvn clean package
+
+# 이미지 빌드 시 실행할 명령어 (빌드 결과 war 파일을 톰캣 9.0에 배포)
+RUN cp /tmp/DeployProject/target/DeployProject-1.0.0.war /home/tomcat/apache-tomcat-9.0.109/webapps/deploy.war
+
+# 포트 열기 (톰캣, MySQL 포트 열기)
+EXPOSE 8080 3306
+
+# 이미지 빌드 시 실행할 명령어 (시작 스크립트 파일 작성 (MySQL 시작 -> schema.sql 스크립트 실행 -> 톰캣 시작))
+COPY <<EOF /home/start.sh
+#!/bin/bash
+# MySQL 시작
+echo "Start MySQL Server ..."
+service mysql start
+# schema.sql 스크립트 실행
+echo "Running schema.sql ..."
+mysql -u goodee -p goodee db_file < /tmp/DeployProject/src/main/resources/schema.sql
+# 톰캣 시작
+echo "Start Tomcat Server ..."
+/home/tomcat/apache-tomcat-9.0.109/bin/catalina.sh run
+# /home/start.sh 파일의 내용 끝
+EOF
+
+# 이미지 빌드 시 실행할 명령어 (/home/start.sh 파일에 실행 권한 부여하기)
+RUN chmod a+x /home/start.sh
+
+# 컨테이너 실행 시 수행할 명령어
+CMD ["/home/start.sh"]

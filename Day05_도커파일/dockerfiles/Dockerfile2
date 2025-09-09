@@ -1,0 +1,8 @@
+# 베이스 이미지
+FROM ubuntu:22.04
+
+# 컨테이너 실행 시 항상 실행할 명령
+ENTRYPOINT ["echo"]
+
+# 컨테이너 실행 시 전달할 인자 
+CMD ["Hello World"]

@@ -38,19 +38,13 @@ RUN cp /tmp/DeployProject/target/DeployProject-1.0.0.war /home/tomcat/apache-tom
 EXPOSE 8080 3306
 
 # 이미지 빌드 시 실행할 명령어 (시작 스크립트 파일 작성 (MySQL 시작 -> schema.sql 스크립트 실행 -> 톰캣 시작))
-COPY <<EOF /home/start.sh
-#!/bin/bash
-# MySQL 시작
-echo "Start MySQL Server ..."
-service mysql start
-# schema.sql 스크립트 실행
-echo "Running schema.sql ..."
-mysql -u goodee -p goodee db_file < /tmp/DeployProject/src/main/resources/schema.sql
-# 톰캣 시작
-echo "Start Tomcat Server ..."
-/home/tomcat/apache-tomcat-9.0.109/bin/catalina.sh run
-# /home/start.sh 파일의 내용 끝
-EOF
+RUN echo '#!/bin/bash' > /home/start.sh && \
+    echo 'echo "Start MySQL Server ..."' >> /home/start.sh && \
+    echo 'service mysql start' >> /home/start.sh && \
+    echo 'echo "Running schema.sql ..."' >> /home/start.sh && \
+    echo 'mysql -u goodee -pgoodee db_file < /tmp/DeployProject/src/main/resources/schema.sql' >> /home/start.sh && \
+    echo 'echo "Start Tomcat Server ..."' >> /home/start.sh && \
+    echo '/home/tomcat/apache-tomcat-9.0.109/bin/catalina.sh run' >> /home/start.sh
 
 # 이미지 빌드 시 실행할 명령어 (/home/start.sh 파일에 실행 권한 부여하기)
 RUN chmod a+x /home/start.sh
